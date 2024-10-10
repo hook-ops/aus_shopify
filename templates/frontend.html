@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dynamic Store Forms</title>
+  
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+   <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      background-color: #edeff1;
+      font-family: 'Poppins', sans-serif;
+    }
+    .store-btn {
+      margin-bottom: 10px;
+      width: 100%; /* Expand button to full width of the panel */
+    }
+    .store-form {
+      display: none;
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #454d55;
+      color: white;
+      border-radius: 8px;
+    }
+    .left-panel {
+      background-color: #343a40;
+      color: white;
+      padding: 20px;
+      width: 17%; /* Set left panel width */
+      border-radius: 15px;
+    }
+    .right-panel {
+      background-color: #f1f1f1;
+      padding: 20px;
+      width: 83%;
+      border-radius: 15px;
+      margin-left : 10px;
+      box-shadow: 0px 5px 15px rgba(0,0,0,0.1);
+    }
+    .main-content {
+      display: flex;
+      height: 100%;
+      margin-top: 20px;
+    }
+    .container-fluid {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container-fluid">
+    <h1 class="text-center">Store Scraper Dashboard</h1>
+    
+    <!-- Left Panel with Store List -->
+    <div class="main-content">
+      <div class="left-panel">
+        <h3>Stores</h3>
+        <div id="storeButtonsContainer" class="store-buttons">
+          <!-- Store buttons and forms will be dynamically generated here -->
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <h3>Scraped Products</h3>
+        
+        <!-- Product Table -->
+        <table class="table table-hover table-bordered product-table">
+          <thead class="table-dark">
+            <tr>
+              <th>Image</th>
+              <th>Title</th>
+              <th>Brand</th>
+              <th>Color</th>
+              <th>Gender</th>
+              <th>Material</th>
+              <th>Age Group</th>
+              <th>Size</th>
+              <th>SKU</th>
+              <th>GTIN/UPC/Barcode</th>
+              <th>Weight</th>
+              <th>Product Detail</th>
+              <th>Quantity</th>
+            </tr>
+          </thead>
+          <tbody id="productTableBody">
+            <!-- Dynamically add products here -->
+          </tbody>
+        </table>
+
+        <!-- Product Detail -->
+        <div class="product-detail" id="productDetail" style="display: none;">
+          <h4>Product Details</h4>
+          <img src="{{ product['Image'] }}" alt="Product Image">
+
+          <p><strong>Title: </strong><span id="productTitle"></span></p>
+          <p><strong>Brand: </strong><span id="productBrand"></span></p>
+          <p><strong>Color: </strong><span id="productColor"></span></p>
+          <p><strong>Gender: </strong><span id="productGender"></span></p>
+          <p><strong>Material: </strong><span id="productMaterial"></span></p>
+          <p><strong>Age Group: </strong><span id="productAge"></span></p>
+          <p><strong>Size: </strong><span id="productSize"></span></p>
+          <p><strong>SKU: </strong><span id="productSKU"></span></p>
+          <p><strong>GTIN/UPC/Barcode: </strong><span id="productGtin"></span></p>
+          <p><strong>Weight: </strong><span id="productWeight"></span></p>
+          <p><strong>Product Detail: </strong><span id="productDetail"></span></p>
+          <p><strong>Quantity: </strong><span id="productQuantity"></span></p>
+          <button class="btn btn-primary" id="changeImageBtn">Change Image</button>
+        </div>
+      </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bootstrap 5 and jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+  <!-- Dynamic Form Generation -->
+  <script>
+    // Array of store objects
+    const stores = [
+      { id: 'store1', name: 'USGStore' },
+      { id: 'store2', name: 'Above The Clouds' },
+      { id: 'store3', name: 'Clique' },
+      { id: 'store4', name: 'Concrete Jungle' },
+      { id: 'store5', name: 'Finesse' },
+      { id: 'store6', name: 'Hemley Store' },
+      { id: 'store7', name: 'Highs and Lows' },
+      { id: 'store8', name: 'Laced' },
+      { id: 'store9', name: 'Mi-Life' },
+      { id: 'store10', name: 'Prime' },
+      { id: 'store11', name: 'Sneaker Lounge' },
+      { id: 'store12', name: 'Supply Store' },
+      { id: 'store13', name: 'Trainers' },
+      { id: 'store14', name: 'Up There' },
+      // Add more stores as needed
+    ];
+
+    // Dynamically generate store buttons and forms
+    stores.forEach((store, index) => {
+      // Create store button
+      $('#storeButtonsContainer').append(`
+        <button class="btn btn-secondary store-btn" data-store="${store.id}">${store.name}</button>
+        <div id="${store.id}Form" class="store-form">
+          <h5>${store.name} Scraper</h5>
+          <div class="mb-2">
+            <label for="urlInput${index}">Target URL:</label>
+            <input type="text" class="form-control" id="urlInput${index}" placeholder="https://example.com">
+          </div>
+          <div class="mb-2">
+            <label for="genderInput${index}">Gender:</label>
+            <input type="text" class="form-control" id="genderInput${index}" placeholder="Men, Women, Unisex">
+          </div>
+          <div class="mb-2">
+            <label for="categoryInput${index}">Category:</label>
+            <input type="text" class="form-control" id="categoryInput${index}" placeholder="Shoes, Clothing, Accessories">
+          </div>
+          <button class="btn btn-primary mb-2" id="startScrapingBtn${index}">Start Scraping</button>
+          <button class="btn btn-warning mb-2">Upload Products</button>
+          <button class="btn btn-success mb-2">Export CSV</button>
+        </div>
+      `);
+    });
+
+    // Initially hide all forms
+    $('.store-form').hide();
+
+    // Store button click event to toggle corresponding form visibility
+    $('.store-btn').on('click', function() {
+      const storeId = $(this).data('store');  // Get store ID from button
+      $(`#${storeId}Form`).toggle();  // Toggle the visibility of the corresponding form
+    });
+
+    // Example scraping function
+    stores.forEach((store, index) => {
+      $(`#startScrapingBtn${index}`).on('click', function() {
+        const url = $(`#urlInput${index}`).val();
+        const gender = $(`#genderInput${index}`).val();
+        const category = $(`#categoryInput${index}`).val();
+
+        // Make AJAX request with these values
+        $.ajax({
+            url: '/scrape',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ url: url, gender: gender, category: category }),
+            success: function(response) {
+                console.log('Scraping response:', response);
+                $('#statusMessage').text(`Scraping started for ${store.name}...`);
+            },
+            error: function(error) {
+                console.log('Error:', error);
+            }
+        });
+        
+        console.log(`Scraping started for ${store.name} with URL: ${url}, Gender: ${gender}, Category: ${category}`);
+        $('#statusMessage').text(`Scraping ${store.name}...`);
+
+        // Add your scraping logic here using AJAX or other methods
+      });
+    });
+
+    const socket = io(); // Flask-SocketIO for real-time communication
+    
+    let products = []; // Store products here
+
+    // // Start Scraping Button click
+    // $('#startScrapingBtn').on('click', function() {
+    //   const targetUrl = $('#urlInput').val();
+    //   const gender = $('#genderInput').val();
+    //   const category = $('#categoryInput').val();
+
+    //   // Send POST request to /scrape route
+    //   $.ajax({
+    //     url: '/scrape',
+    //     method: 'POST',
+    //     contentType: 'application/json',
+    //     data: JSON.stringify({ url: targetUrl, gender: gender, category: category }),
+    //     success: function(response) {
+    //       // Display success message and update product table
+    //       socket.emit('update', { message: 'Scraping started...' });
+    //     },
+    //     error: function(error) {
+    //       console.log('Error:', error);
+    //     }
+    //   });
+    // });
+
+    // Listen for real-time updates from SocketIO
+    socket.on('update', (data) => {
+      // Update scraping status on the UI
+    //   $('#statusMessage').text(data.message);
+
+      // If the scraping is finished, update the table with products
+      if (data.product) {
+        // Assuming data.message contains a product title, update the UI to show the scraped product
+        // const product = data.message.replace("Scraped product: ", "");
+        console.log("Product data received:", data.product);
+        const product = data.product;
+        // const product = data.product;
+        // Add the scraped product details to the table
+        const productRow = `
+          <tr>
+              <td><img src="${product.Image !== 'No image found' ? product.Image : 'placeholder.jpg'}" alt="Product Image" class="img-thumbnail" id="productImage_${product.id}" style="cursor:pointer;">
+                <input type="file" id="imageUploadInput_${product.id}" style="display: none;" accept="image/*">
+              </td>
+              <td>${product.Title || 'N/A'}</td>
+              <td>${product.Brand || 'N/A'}</td>
+              <td>${product.Color || 'N/A'}</td>
+              <td>${product.Gender || 'N/A'}</td>
+              <td>${product.Material || 'N/A'}</td>
+              <td>${product['Age group'] || 'N/A'}</td>
+              <td>${product.Size || 'N/A'}</td>
+              <td>${product.SKU || 'N/A'}</td>
+              <td>${product['Barcode'] || 'N/A'}</td>
+              <td>${product.Weight || 'N/A'}</td>
+              <td>${product['Product detail'] || 'N/A'}</td>
+              <td>${product.Quantity || 'N/A'}</td>
+          </tr>`;
+        $('#productTableBody').append(productRow);
+
+         // Now add the event listeners for image click and file upload after the row is appended
+    $(`#productImage_${product.id}`).on('click', function() {
+        $(`#imageUploadInput_${product.id}`).click();  // Trigger the hidden file input
+    });
+    // Handle image upload and replace the current image
+    $(`#imageUploadInput_${product.id}`).on('change', function(event) {
+        var formData = new FormData();
+        var file = event.target.files[0];
+        formData.append('image', file);
+        // Upload the image to the server
+        fetch('/upload-image', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the product image with the newly uploaded image
+                $(`#productImage_${product.id}`).attr('src', data.imageUrl);
+            } else {
+                alert('Image upload failed: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    });
+
+
+      }
+    });
+
+    // Handle Scraping Progress
+    socket.on('scraping_progress', (data) => {
+      $('#statusMessage').text(data.status);
+    });
+
+    // When scraping is finished, show products in table
+    socket.on('scraping_finished', (data) => {
+      products = data.products;
+      $('#statusMessage').text('Scraping finished!');
+      updateProductTable();
+    });
+
+    // Update Product Table
+    // function updateProductTable() {
+    //   const tbody = $('#productTableBody');
+    //   tbody.empty(); // Clear existing rows
+
+    //   products.forEach((product, index) => {
+    //     const row = `
+    //         <tr>
+    //           <td><img src="${product.Image !== 'No image found' ? product.Image : 'placeholder.jpg'}" alt="Product Image" class="img-thumbnail"></td>
+    //           <td>${product.Title}</td>
+    //           <td>${product.Brand}</td>
+    //           <td>${product.Color}</td>
+    //           <td>${product.Gender}</td>
+    //           <td>${product.Material}</td>
+    //           <td>${product['Age group']}</td>
+    //           <td>${product.Size || 'N/A'}</td>
+    //           <td>${product.SKU || 'N/A'}</td>
+    //           <td>${product['GTIN/UPC/Barcode'] || 'N/A'}</td>
+    //           <td>${product.Weight || 'N/A'}</td>
+    //           <td>${product['Product detail'] || 'N/A'}</td>
+    //           <td>${product.Quantity || 'N/A'}</td>
+    //         </tr>`;
+    //     tbody.append(row);
+    //   });
+    // }
+
+    // Click image to change custom image
+   
+  </script>
+
+</body>
+</html>
