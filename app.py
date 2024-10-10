@@ -100,7 +100,8 @@ def scrape_product(url):
                 # Loop through each variant to extract its specific details
                 for variant in product_data['variants']:
                     variant_data = {
-                        'Size': variant.get('option1', 'Size not found'),
+                        
+                        'Size': variant.get('option2', 'Size not found'),
                         'ID': variant.get('id', 'ID not found'),
                         'SKU': variant.get('sku', 'SKU not found'),
                         'Barcode': variant.get('barcode', 'Barcode not found'),

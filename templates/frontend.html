@@ -136,11 +136,18 @@
      function appendVariantRow(variant) {
       const variantRow = `
         <tr>
-          <td>${variant.id}</td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
+          <td></td>
           <td>${variant.size}</td>
           <td>${variant.sku}</td>
           <td>${variant.barcode}</td>
           <td>${variant.weight}</td>
+          <td></td>
           <td>${variant.quantity}</td>
         </tr>`;
       $('#variantTableBody').append(variantRow);
