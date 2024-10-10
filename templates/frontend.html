@@ -93,6 +93,10 @@
           <tbody id="productTableBody">
             <!-- Dynamically add products here -->
           </tbody>
+          <!-- Variants Table -->
+          <tbody id="variantTableBody">
+            <!-- Variants will be dynamically added here -->
+          </tbody>
         </table>
 
         <!-- Product Detail -->
@@ -127,6 +131,21 @@
   <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
   <!-- Dynamic Form Generation -->
   <script>
+
+     // Function to append product variants
+     function appendVariantRow(variant) {
+      const variantRow = `
+        <tr>
+          <td>${variant.id}</td>
+          <td>${variant.size}</td>
+          <td>${variant.sku}</td>
+          <td>${variant.barcode}</td>
+          <td>${variant.weight}</td>
+          <td>${variant.quantity}</td>
+        </tr>`;
+      $('#variantTableBody').append(variantRow);
+    }
+
     // Array of store objects
     const stores = [
       { id: 'store1', name: 'USGStore' },
@@ -214,28 +233,7 @@
     
     let products = []; // Store products here
 
-    // // Start Scraping Button click
-    // $('#startScrapingBtn').on('click', function() {
-    //   const targetUrl = $('#urlInput').val();
-    //   const gender = $('#genderInput').val();
-    //   const category = $('#categoryInput').val();
-
-    //   // Send POST request to /scrape route
-    //   $.ajax({
-    //     url: '/scrape',
-    //     method: 'POST',
-    //     contentType: 'application/json',
-    //     data: JSON.stringify({ url: targetUrl, gender: gender, category: category }),
-    //     success: function(response) {
-    //       // Display success message and update product table
-    //       socket.emit('update', { message: 'Scraping started...' });
-    //     },
-    //     error: function(error) {
-    //       console.log('Error:', error);
-    //     }
-    //   });
-    // });
-
+    
     // Listen for real-time updates from SocketIO
     socket.on('update', (data) => {
       // Update scraping status on the UI
@@ -266,37 +264,51 @@
               <td>${product.Weight || 'N/A'}</td>
               <td>${product['Product detail'] || 'N/A'}</td>
               <td>${product.Quantity || 'N/A'}</td>
-          </tr>`;
+          </tr>
+          `;
+
+        // Append variants if available
+        if (product.Variants && product.Variants.length > 0) {
+          product.Variants.forEach(variant => {
+            appendVariantRow({
+              id: variant.ID,
+              size: variant.Size,
+              sku: variant.SKU,
+              barcode: variant.Barcode,
+              weight: variant.Weight,
+              quantity: variant.Quantity
+            });
+          });
+        }
         $('#productTableBody').append(productRow);
 
          // Now add the event listeners for image click and file upload after the row is appended
-    $(`#productImage_${product.id}`).on('click', function() {
-        $(`#imageUploadInput_${product.id}`).click();  // Trigger the hidden file input
-    });
-    // Handle image upload and replace the current image
-    $(`#imageUploadInput_${product.id}`).on('change', function(event) {
-        var formData = new FormData();
-        var file = event.target.files[0];
-        formData.append('image', file);
-        // Upload the image to the server
-        fetch('/upload-image', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Update the product image with the newly uploaded image
-                $(`#productImage_${product.id}`).attr('src', data.imageUrl);
-            } else {
-                alert('Image upload failed: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
+        $(`#productImage_${product.id}`).on('click', function() {
+            $(`#imageUploadInput_${product.id}`).click();  // Trigger the hidden file input
         });
-    });
-
+        // Handle image upload and replace the current image
+        $(`#imageUploadInput_${product.id}`).on('change', function(event) {
+            var formData = new FormData();
+            var file = event.target.files[0];
+            formData.append('image', file);
+            // Upload the image to the server
+            fetch('/upload-image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the product image with the newly uploaded image
+                    $(`#productImage_${product.id}`).attr('src', data.imageUrl);
+                } else {
+                    alert('Image upload failed: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
 
       }
     });
@@ -307,11 +319,20 @@
     });
 
     // When scraping is finished, show products in table
-    socket.on('scraping_finished', (data) => {
-      products = data.products;
-      $('#statusMessage').text('Scraping finished!');
-      updateProductTable();
-    });
+     // When scraping is finished, show products and variants in the table
+    //  socket.on('scraping_finished', (data) => {
+    //   $('#statusMessage').text('Scraping finished!');
+    //   if (data.products && data.products.length > 0) {
+    //     data.products.forEach(product => {
+    //       appendProductRow(product);
+    //       if (product.variants && product.variants.length > 0) {
+    //         product.variants.forEach(variant => {
+    //           appendVariantRow(variant);
+    //         });
+    //       }
+    //     });
+    //   }
+    // });
 
     // Update Product Table
     // function updateProductTable() {

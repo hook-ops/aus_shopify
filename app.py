@@ -9,6 +9,8 @@ import time
 import re
 import os
 
+import json
+
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -48,6 +50,7 @@ def scrape_product(url):
 
     # Initialize an empty product dictionary to avoid UnboundLocalError
     product = {}
+    variants = []  # To store variants/sub-products
 
     try:
         response = session.get(url)
@@ -85,8 +88,32 @@ def scrape_product(url):
             product['Quantity'] = quantity_match.group(1) if quantity_match else 'Quantity not found'
             product['id'] = id_match.group(1) if id_match else 'ID not found'
 
+            # Add variants logic
+            product_data_match = re.search(r'product:\s*(\{.*\})', script_content)
+            if product_data_match:
+                product_data_json = product_data_match.group(1)
+                product_data = json.loads(product_data_json)
+
+                # Add the original product details
+                product['id'] = product_data.get('id', 'ID not found')
+                
+                # Loop through each variant to extract its specific details
+                for variant in product_data['variants']:
+                    variant_data = {
+                        'Size': variant.get('option1', 'Size not found'),
+                        'ID': variant.get('id', 'ID not found'),
+                        'SKU': variant.get('sku', 'SKU not found'),
+                        'Barcode': variant.get('barcode', 'Barcode not found'),
+                        'Quantity': variant.get('inventory_quantity', 'Quantity not found'),
+                        'Weight': variant.get('weight', 'Weight not found')
+                    }
+                    variants.append(variant_data)
+
         else:
             print('No JavaScript object found containing product details')
+
+        # Add variants to the main product dictionary
+        product['Variants'] = variants
 
         # Find the main div containing the thumbnail images
         thumbnail_slider = soup.find('div', class_='product-thumbnail-slider')
