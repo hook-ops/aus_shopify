@@ -100,24 +100,7 @@
         </table>
 
         <!-- Product Detail -->
-        <div class="product-detail" id="productDetail" style="display: none;">
-          <h4>Product Details</h4>
-          <img src="{{ product['Image'] }}" alt="Product Image">
-
-          <p><strong>Title: </strong><span id="productTitle"></span></p>
-          <p><strong>Brand: </strong><span id="productBrand"></span></p>
-          <p><strong>Color: </strong><span id="productColor"></span></p>
-          <p><strong>Gender: </strong><span id="productGender"></span></p>
-          <p><strong>Material: </strong><span id="productMaterial"></span></p>
-          <p><strong>Age Group: </strong><span id="productAge"></span></p>
-          <p><strong>Size: </strong><span id="productSize"></span></p>
-          <p><strong>SKU: </strong><span id="productSKU"></span></p>
-          <p><strong>GTIN/UPC/Barcode: </strong><span id="productGtin"></span></p>
-          <p><strong>Weight: </strong><span id="productWeight"></span></p>
-          <p><strong>Product Detail: </strong><span id="productDetail"></span></p>
-          <p><strong>Quantity: </strong><span id="productQuantity"></span></p>
-          <button class="btn btn-primary" id="changeImageBtn">Change Image</button>
-        </div>
+        
       </div>
       </div>
     </div>
@@ -193,7 +176,7 @@
           </div>
           <button class="btn btn-primary mb-2" id="startScrapingBtn${index}">Start Scraping</button>
           <button class="btn btn-warning mb-2">Upload Products</button>
-          <button class="btn btn-success mb-2">Export CSV</button>
+          <button class="btn btn-success mb-2" id="exportCSVBtn">Export CSV</button>
         </div>
       `);
     });
@@ -367,7 +350,70 @@
     //   });
     // }
 
-    // Click image to change custom image
+    // Export csv file
+    // Function to get today's date in the format YYYY-MM-DD
+    // Function to get today's date in the format YYYY-MM-DD
+    function getTodayDate() {
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are 0-based, so add 1
+      const day = String(today.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Function to download table data as a CSV file
+    function exportTableToCSV(filename) {
+      var csv = [];
+      var rows = document.querySelectorAll("table tr");
+    
+      // Loop through each row and extract its cells' data
+      for (var i = 0; i < rows.length; i++) {
+        var row = [], cols = rows[i].querySelectorAll("td, th");
+      
+        for (var j = 0; j < cols.length; j++) {
+          row.push('"' + cols[j].innerText + '"');  // Wrap each cell value in quotes for safety
+        }
+      
+        csv.push(row.join(","));  // Join each row with commas to form a CSV row
+      }
+    
+      // Create a downloadable CSV blob
+      var csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+    
+      // Create a link element to trigger the download
+      var downloadLink = document.createElement("a");
+      downloadLink.download = filename;
+    
+      // Create a URL for the CSV blob and set it as the href for the download link
+      downloadLink.href = window.URL.createObjectURL(csvFile);
+    
+      // Append the link to the body and trigger the download
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    }
+    
+    // Add event listener for CSV export
+    document.getElementById("exportCSVBtn").addEventListener("click", function () {
+      // Get the active store's name
+      const selectedStore = document.querySelector('.store-btn.active').textContent.trim();
+    
+      // Get today's date
+      const todayDate = getTodayDate();
+    
+      // Generate filename using store name and today's date
+      const filename = `${selectedStore}_${todayDate}.csv`;
+    
+      // Call function to export table data as CSV
+      exportTableToCSV(filename);
+    });
+    
+    // Ensure active store is tracked by adding an "active" class
+    $('.store-btn').on('click', function() {
+      $('.store-btn').removeClass('active');  // Remove active class from all buttons
+      $(this).addClass('active');  // Add active class to the clicked button
+    });
+    
    
   </script>
 
