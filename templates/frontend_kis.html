@@ -38,8 +38,6 @@
       width: 17%; /* Set left panel width */
       border-radius: 15px;
       box-shadow: slategray;
-      max-height: 90vh;
-      overflow-y: auto;
     }
     .right-panel {
       background-color: #f1f1f1;
@@ -48,8 +46,6 @@
       border-radius: 15px;
       margin-left : 10px;
       box-shadow: 0px 5px 15px rgba(0,0,0,0.1);
-      max-height: 90vh;
-      overflow-y: auto;
     }
     .main-content {
       display: flex;
@@ -99,7 +95,6 @@
               <th>Weight</th>
               <th>Product Detail</th>
               <th>Quantity</th>
-              <th>Upload</th>
             </tr>
           </thead>
           <tbody id="productTableBody">
@@ -144,7 +139,6 @@
           <td>${variant.weight}</td>
           <td></td>
           <td>${variant.quantity}</td>
-          
         </tr>`;
       $('#variantTableBody').append(variantRow);
     }
@@ -177,8 +171,9 @@
           <h5>${store.name} Scraper</h5>
           <div class="mb-2">
             <label for="urlInput${index}">Target URL:</label>
-             <input type="text" class="form-control" id="urlInput${index}" placeholder="https://example.com" value="${store.name === 'USGStore' ? 'https://usgstore.com.au' : ''}">
+            <input type="text" class="form-control" id="urlInput${index}" placeholder="https://example.com">
           </div>
+          
           <div class="mb-2">
             <label for="brandInput${index}">Brand:</label>
             <select class="form-control" id="brandInput${index}">
@@ -207,13 +202,11 @@
     stores.forEach((store, index) => {
       $(`#startScrapingBtn${index}`).on('click', function() {
         const url = $(`#urlInput${index}`).val();
-        const gender = $(`#genderInput${index}`).val();
+        // const gender = $(`#genderInput${index}`).val();
         const brand = $(`#brandInput${index}`).val();
-        const category = $(`#categoryInput${index}`).val();
 
-        socket.emit('scrape', { url: url, brand: brand })
         // Make AJAX request with these values
-        /*$.ajax({
+        $.ajax({
             url: '/scrape',
             method: 'POST',
             contentType: 'application/json',
@@ -226,7 +219,7 @@
             error: function(error) {
                 console.log('Error:', error);
             }
-        });*/
+        });
         
         console.log(`Scraping started for ${store.name} with URL: ${url}, Gender: ${gender}, Category: ${category}`);
         $('#statusMessage').text(`Scraping ${store.name}...`);
@@ -236,13 +229,7 @@
     });
 
     const socket = io(); // Flask-SocketIO for real-time communication
-    socket.on('connect', () => {
-        console.log('Connected to the server');
-        socket.emit('message', {data: 'I\'m connected!'});
-    });
-    socket.on('disconnect', () => {
-        console.log('Disconnected from the server');
-    });
+    
     let products = []; // Store products here
 
     
@@ -250,17 +237,13 @@
     socket.on('update', (data) => {
       // Update scraping status on the UI
     //   $('#statusMessage').text(data.message);
-      console.log("updating now");
-      console.log(data)
+
       // If the scraping is finished, update the table with products
       if (data.product) {
         // Assuming data.message contains a product title, update the UI to show the scraped product
         // const product = data.message.replace("Scraped product: ", "");
         console.log("Product data received:", data.product);
         const product = data.product;
-
-         // Set showUploadButton to true only for products without variants
-        let showUploadButton = !product.Variants || product.Variants.length === 0;
         // const product = data.product;
         // Add the scraped product details to the table
         const productRow = `
@@ -280,10 +263,9 @@
               <td>${product.Weight || 'N/A'}</td>
               <td>${product['Product detail'] || 'N/A'}</td>
               <td>${product.Quantity || 'N/A'}</td>
-              <td> ${showUploadButton ? `<button class="btn btn-primary" onclick="uploadProduct(${index})">Upload</button>` : 'N/A'}</td>
           </tr>
           `;
-        $('#productTableBody').append(productRow);
+
         // Append variants if available
         if (product.Variants && product.Variants.length > 0) {
           product.Variants.forEach(variant => {
@@ -297,14 +279,8 @@
             });
           });
         }
+        $('#productTableBody').append(productRow);
 
-        addImageUploadListeners(product.id);
-
-        if (data.message) {
-          console.log(data.message);
-          $('#statusMessage').text(data.message); // Optionally update the UI with status
-        }
-    
          // Now add the event listeners for image click and file upload after the row is appended
         $(`#productImage_${product.id}`).on('click', function() {
             $(`#imageUploadInput_${product.id}`).click();  // Trigger the hidden file input
@@ -341,6 +317,51 @@
       $('#statusMessage').text(data.status);
     });
 
+    // When scraping is finished, show products in table
+     // When scraping is finished, show products and variants in the table
+    //  socket.on('scraping_finished', (data) => {
+    //   $('#statusMessage').text('Scraping finished!');
+    //   if (data.products && data.products.length > 0) {
+    //     data.products.forEach(product => {
+    //       appendProductRow(product);
+    //       if (product.variants && product.variants.length > 0) {
+    //         product.variants.forEach(variant => {
+    //           appendVariantRow(variant);
+    //         });
+    //       }
+    //     });
+    //   }
+    // });
+
+    // Update Product Table
+    // function updateProductTable() {
+    //   const tbody = $('#productTableBody');
+    //   tbody.empty(); // Clear existing rows
+
+    //   products.forEach((product, index) => {
+    //     const row = `
+    //         <tr>
+    //           <td><img src="${product.Image !== 'No image found' ? product.Image : 'placeholder.jpg'}" alt="Product Image" class="img-thumbnail"></td>
+    //           <td>${product.Title}</td>
+    //           <td>${product.Brand}</td>
+    //           <td>${product.Color}</td>
+    //           <td>${product.Gender}</td>
+    //           <td>${product.Material}</td>
+    //           <td>${product['Age group']}</td>
+    //           <td>${product.Size || 'N/A'}</td>
+    //           <td>${product.SKU || 'N/A'}</td>
+    //           <td>${product['GTIN/UPC/Barcode'] || 'N/A'}</td>
+    //           <td>${product.Weight || 'N/A'}</td>
+    //           <td>${product['Product detail'] || 'N/A'}</td>
+    //           <td>${product.Quantity || 'N/A'}</td>
+    //         </tr>`;
+    //     tbody.append(row);
+    //   });
+    // }
+
+    // Export csv file
+    // Function to get today's date in the format YYYY-MM-DD
+    // Function to get today's date in the format YYYY-MM-DD
     function getTodayDate() {
       const today = new Date();
       const year = today.getFullYear();
@@ -348,35 +369,7 @@
       const day = String(today.getDate()).padStart(2, '0');
       return `${year}-${month}-${day}`;
     }
-  function addImageUploadListeners(productId) {
-    $(`#productImage_${productId}`).on('click', function() {
-      $(`#imageUploadInput_${productId}`).click();  // Trigger the hidden file input
-    });
-    
-    $(`#imageUploadInput_${productId}`).on('change', function(event) {
-      const formData = new FormData();
-      const file = event.target.files[0];
-      formData.append('image', file);
 
-      // Upload the image to the server
-      fetch('/upload-image', {
-        method: 'POST',
-        body: formData
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          // Update the product image with the newly uploaded image
-          $(`#productImage_${productId}`).attr('src', data.imageUrl);
-        } else {
-          alert('Image upload failed: ' + data.message);
-        }
-      })
-      .catch(error => {
-        console.error('Error:', error);
-      });
-    });
-  }
     // Function to download table data as a CSV file
     function exportTableToCSV(filename) {
       var csv = [];
@@ -409,33 +402,6 @@
       document.body.removeChild(downloadLink);
     }
 
-
-    // Upload product to shopify
-    function uploadProduct(index) {
-            // Get the product data by index
-            socket.emit('scrape', function(data){
-                let product = data.products[index];
-                let sku = product.SKU;
-            
-                $.ajax({
-                    url: '/upload',
-                    type: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({
-                        product: product,
-                        sku: sku
-                    }),
-                    success: function(response) {
-                        console.log(response.status);
-                        alert('Product uploaded successfully!');
-                    },
-                    error: function(xhr, status, error) {
-                        console.log(xhr.responseText);
-                        alert('Product upload failed.');
-                    }
-                });
-            });
-        }
     // Add event listener for CSV export
     document.getElementById("exportCSVBtn").addEventListener("click", function () {
       // Get the active store's name
@@ -459,5 +425,6 @@
 
    
   </script>
+
 </body>
 </html>

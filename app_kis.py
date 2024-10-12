@@ -13,7 +13,7 @@ import json
 
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+socketio = SocketIO(app, cors_allowed_origins="*")
 time.sleep(4)
 
 # Global variable to store scraped data
@@ -23,20 +23,6 @@ scraped_data = []
 # When user click scraped product's image, user can change product image
 UPLOAD_FOLDER = 'static/uploads/'  # Folder where uploaded images are saved
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
-    emit('message', {'message': 'Welcome to the chat!'}, broadcast=True)
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Client disconnected')
-
-@socketio.on('message')
-def handle_message(data):
-    print(f'Message received: {data}')
-    emit('message', {'message': data}, broadcast=True)
 
 # Configure retries and timeout
 def requests_retry_session(
@@ -81,7 +67,7 @@ def upload_image():
     return jsonify({"success": False, "message": "Upload failed"})
 
 # Function to scrape product data from USG Store
-def scrape_product(url, brand):
+def scrape_product(url):
     session = requests.Session()
     retries = Retry(total=5, backoff_factor=1, status_forcelist=[502, 503, 504])
     session.mount('https://', HTTPAdapter(max_retries=retries))
@@ -97,7 +83,7 @@ def scrape_product(url, brand):
 
         # Scraping product details
         product['Title'] = soup.find('h3').get_text(strip=True)  # Assuming h3 is for product title
-        product['Brand'] = brand  
+        product['Brand'] = 'jordan'  # Static value for this site
         product['Color'] = soup.find('h4').get_text(strip=True)  # Assuming color is in h4
         
         product['Material'] = 'Leather'
@@ -257,38 +243,6 @@ def upload_to_shopify(product_data, sku, shipping_info):
 
     return new_product
 
-
-@app.route('/upload', methods=['POST'])
-def upload_product():
-    data = request.json
-    product_data = data.get('product')  # Get the specific product data
-    sku = data.get('sku')
-
-    # Emit real-time updates
-    socketio.emit('update', {'message': 'Uploading to Shopify...'})
-
-    # Shopify API credentials
-    api_key = '0854d249f8b53dae6a25e2bbb0c70d78'
-    password = 'd2f7f571e9bad37267ea887a62b15432'
-    store_url = 'https://www.goodlooksofficial.com.au'
-    connect_to_shopify(api_key, password, store_url)
-
-    # Define shipping and return policy
-    shipping_info = {
-        'Shipping weight': '1 kg',
-        'Shipping policy': 'Standard shipping in 5-7 business days.',
-        'Returns and refunds policy': 'Returns accepted within 30 days.'
-    }
-
-    # Upload product to Shopify
-    uploaded_product = upload_to_shopify(product_data, sku, shipping_info)
-    if uploaded_product:
-        socketio.emit('update', {'message': 'Upload completed!'})
-        return jsonify({'status': 'success'})
-    else:
-        return jsonify({'status': 'failed'}), 400
-
-
 # Route to serve frontend
 @app.route('/')
 def index():
@@ -303,9 +257,10 @@ def index():
 
 
 # Route for scraping and storing data
-@socketio.on('scrape')
-def scrape(data):
+@app.route('/scrape', methods=['POST'])
+def scrape():
     global scraped_data
+    data = request.json
     print("Received scraping request: ", data)  # Add print statement for debugging
     url = data.get('url')
     brand = data.get('brand')
@@ -319,7 +274,7 @@ def scrape(data):
     
     # Emit real-time updates via SocketIO
     socketio.emit('update', {'message': f'Starting to scrape {brand} products...'})
-    socketio.sleep(1) # Simulate delay
+    time.sleep(1)  # Simulate delay
 
      # Fetch the main product collection page
     session = requests_retry_session()
@@ -341,22 +296,12 @@ def scrape(data):
         })
 
     # Scrape detailed information from each product page
-    scraped_products = []
-
     for product in products:
         product_detail_url = f"https://usgstore.com.au{product['link']}"
         product_response = requests.get(product_detail_url)
-
         if product_response.status_code == 200:
-            product_data = scrape_product(product_detail_url, brand)
+            product_data = scrape_product(product_detail_url)
             if product_data:
-                # Add the product data to the list for the final return
-                scraped_products.append(product_data)
-                print(f"Emitting data for product: {product_data['Title']}")
-                print('------------------------------------------------------------------------------------------')
-                print(product)
-                print('------------------------------------------------------------------------------------------')
-                # Emit the scraped data for each product immediately
                 socketio.emit('update', {
                     'message': f"Scraped product: {product_data['Title']}",
                     'product': {
@@ -376,25 +321,20 @@ def scrape(data):
                         'Variants': product_data.get('Variants', [])
                     }
                 })
-                socketio.sleep(1)
-                # return jsonify({'product':product_data})
+                return jsonify({'product':product_data})
             else:
-                # Emit a message indicating that scraping failed for this product
                 socketio.emit('update', {'message': f"Failed to scrape product: {product['name']}"})
-                socketio.sleep(1)
-        else:
-            # Emit a message indicating that fetching the product detail page failed
-            socketio.emit('update', {'message': f"Failed to fetch product detail page for: {product['name']}"})
-            socketio.sleep(1)
+            # product_soup = BeautifulSoup(product_response.content, 'html.parser')
+            # # Extract details like SKU, price, etc.
+            # product['sku'] = product_soup.select_one('span.product-sku').text if product_soup.select_one('span.product-sku') else 'N/A'
+            # product['price'] = product_soup.select_one('span.product-price').text if product_soup.select_one('span.product-price') else 'N/A'
+            # Add other details as needed...
 
+            # Emit real-time update for each scraped product
+            socketio.emit('update', {'message': f"Scraped product: {product['name']}", 'product': product})
 
-    # Emit a completion message after all products are processed
-    socketio.emit('update', {'message': 'All products have been processed.'})
-    socketio.sleep(1)
-
-
-    # # Return all scraped data as JSON at the end of the process
-    # return jsonify({'products': scraped_products})
+    # Return the scraped data as JSON
+    # return jsonify({'products': product})
 
 # Route for uploading to Shopify
 @app.route('/upload', methods=['POST'])
@@ -407,8 +347,8 @@ def upload():
     socketio.emit('update', {'message': 'Uploading to Shopify...'})
 
     # Shopify API credentials
-    api_key = '0854d249f8b53dae6a25e2bbb0c70d78'
-    password = 'd2f7f571e9bad37267ea887a62b15432'
+    api_key = 'your_api_key'
+    password = 'your_password'
     store_url = 'your_store_url'
     connect_to_shopify(api_key, password, store_url)
 
